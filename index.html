@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تطبيق السلم الزمني الاحترافي - ماجد مشرقي</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@300;500;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --cm-px: 37.8px;
+        }
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background-color: #f1f5f9;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .historical-font {
+            font-family: 'Amiri', serif;
+        }
+        .canvas-area {
+            overflow-x: auto;
+            background: #ffffff;
+            padding: 120px 80px;
+            border-radius: 20px;
+            min-height: 700px;
+            position: relative;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.05);
+        }
+        /* Thick Axis with Arrow Head */
+        .timeline-axis {
+            height: 70px;
+            background: #e2e8f0;
+            position: relative;
+            margin: 150px 0;
+            border-radius: 4px 15px 15px 4px;
+            display: flex;
+            align-items: center;
+            border: 2px solid #cbd5e1;
+            /* Direction: Right to Left is handled by the data mapping */
+        }
+        /* Arrow Head at the left end (modern side) */
+        .timeline-axis::after {
+            content: '';
+            position: absolute;
+            left: -30px;
+            top: 50%;
+            transform: translateY(-50%);
+            border-top: 50px solid transparent;
+            border-bottom: 50px solid transparent;
+            border-right: 40px solid #cbd5e1;
+            z-index: 5;
+        }
+        .timeline-axis::before {
+            content: '';
+            position: absolute;
+            left: -22px;
+            top: 50%;
+            transform: translateY(-50%);
+            border-top: 40px solid transparent;
+            border-bottom: 40px solid transparent;
+            border-right: 32px solid #e2e8f0;
+            z-index: 6;
+        }
+
+        .tick {
+            position: absolute;
+            width: 2px;
+            height: 20px;
+            background: #64748b;
+            top: -20px;
+        }
+        .tick-label {
+            position: absolute;
+            top: -55px;
+            transform: translateX(50%);
+            font-size: 14px;
+            font-weight: 800;
+            color: #1e293b;
+            white-space: nowrap;
+        }
+
+        /* Event Box (Period) */
+        .period-block {
+            position: absolute;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: 800;
+            border-radius: 6px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            z-index: 10;
+            border: 1px solid rgba(255,255,255,0.3);
+            cursor: pointer;
+            transition: transform 0.2s;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding: 0 8px;
+        }
+        .period-block:hover { transform: scaleY(1.1); z-index: 30; }
+
+        /* Point Event (Single Year) */
+        .point-event {
+            position: absolute;
+            width: 4px;
+            height: 80px;
+            background: #1e293b;
+            top: -10px;
+            z-index: 20;
+        }
+        .point-label {
+            position: absolute;
+            top: -100px;
+            transform: translateX(50%);
+            background: white;
+            padding: 4px 10px;
+            border-radius: 6px;
+            border: 2px solid #1e293b;
+            font-size: 11px;
+            font-weight: 800;
+            white-space: nowrap;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .author-signature {
+            margin-top: 100px;
+            border-top: 4px double #1e293b;
+            padding-top: 25px;
+        }
+
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white !important; padding: 0; }
+            .canvas-area { border: none !important; box-shadow: none !important; padding: 1cm !important; width: 100% !important; overflow: visible !important;}
+            .timeline-axis { margin: 180px 0 !important; }
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <header class="mb-10 text-center no-print">
+            <h1 class="text-5xl font-extrabold text-slate-900 historical-font mb-3">النظام المتطور للسلالم الزمنية</h1>
+            <p class="text-slate-500 font-medium">بإشراف وتطوير الأستاذ: ماجد مشرقي</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            <!-- Form Side -->
+            <div class="lg:col-span-1 space-y-6 no-print">
+                <section class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <h2 class="font-bold text-slate-800 mb-4 border-b pb-2">⚙️ إعدادات السلم</h2>
+                    <div class="space-y-4">
+                        <input type="text" id="mainTitleInput" placeholder="عنوان السلم الزمني..." class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-400 mb-1">المقياس (سنوات/سم)</label>
+                                <input type="number" id="scaleInput" value="10" class="w-full px-3 py-2 bg-slate-50 border rounded-lg">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-400 mb-1">التقويم</label>
+                                <select id="calendarType" class="w-full px-3 py-2 bg-slate-50 border rounded-lg">
+                                    <option value="ميلادي">ميلادي</option>
+                                    <option value="هجري">هجري</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <h2 class="font-bold text-slate-800 mb-4 border-b pb-2">📝 إضافة معطى تاريخي</h2>
+                    <div class="space-y-3">
+                        <div class="flex gap-2 mb-2 p-1 bg-slate-100 rounded-lg">
+                            <button onclick="setMode('period')" id="modePeriod" class="flex-1 py-1 rounded-md text-xs font-bold bg-white shadow-sm transition-all">فترة زمنية</button>
+                            <button onclick="setMode('point')" id="modePoint" class="flex-1 py-1 rounded-md text-xs font-bold text-slate-500 hover:bg-white transition-all">حدث نقطي</button>
+                        </div>
+                        
+                        <input type="text" id="eventLabel" placeholder="عنوان الفترة/الحدث..." class="w-full px-3 py-2 border rounded-lg">
+                        
+                        <div id="yearInputs" class="grid grid-cols-2 gap-2">
+                            <input type="number" id="yearStart" placeholder="سنة البداية" class="w-full px-3 py-2 border rounded-lg">
+                            <input type="number" id="yearEnd" placeholder="سنة النهاية" class="w-full px-3 py-2 border rounded-lg">
+                        </div>
+                        <p class="text-[9px] text-red-500">* للسنوات قبل الميلاد، ضع علامة ناقص (-) قبل الرقم</p>
+                        
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 mb-1">اختر لوناً مميزاً:</label>
+                            <input type="color" id="eventColor" value="#2563eb" class="w-full h-10 border rounded-lg cursor-pointer">
+                        </div>
+                        
+                        <button onclick="addEntry()" class="w-full bg-slate-900 text-white font-bold py-2.5 rounded-lg hover:bg-slate-800 transition">إدراج في الجدول</button>
+                    </div>
+                </section>
+
+                <section class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="font-bold text-slate-800">الأحداث المجدولة</h2>
+                        <button onclick="clearEntries()" class="text-xs text-red-500">حذف الكل</button>
+                    </div>
+                    <div id="entriesList" class="space-y-2 max-h-40 overflow-y-auto mb-4 text-xs"></div>
+                    <button onclick="drawTimeline()" class="w-full bg-emerald-600 text-white font-black py-3 rounded-xl shadow-lg mb-2">رسم السلم الزمني</button>
+                    <button onclick="window.print()" class="w-full py-2 border-2 rounded-lg font-bold text-slate-600">طباعة العمل</button>
+                </section>
+            </div>
+
+            <!-- Preview Side -->
+            <div class="lg:col-span-3">
+                <div id="printArea" class="canvas-area">
+                    <div id="emptyState" class="h-full flex flex-col items-center justify-center text-slate-300 italic">
+                        <p>أدخل المعطيات التاريخية ثم اضغط على "رسم السلم الزمني"</p>
+                    </div>
+
+                    <div id="timelineBody" class="hidden">
+                        <div class="text-center mb-16">
+                            <h2 id="finalTitle" class="text-4xl font-black text-slate-900 historical-font"></h2>
+                            <p id="finalSub" class="text-slate-500 font-bold mt-2"></p>
+                        </div>
+
+                        <div id="axis" class="timeline-axis">
+                            <!-- Dynamic Content -->
+                        </div>
+
+                        <div class="author-signature flex justify-between items-end">
+                            <div>
+                                <p class="text-2xl font-black">الأستاذ: ماجد مشرقي</p>
+                                <p class="text-slate-500 font-bold italic">مؤطر تربوي ومصمم موارد رقمية</p>
+                            </div>
+                            <div class="text-left text-[11px] text-slate-400 font-mono">
+                                <p id="timestamp"></p>
+                                <p>Generated by DigitalTeacher App v3.0</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let entries = [];
+        let currentMode = 'period';
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.getElementById('modePeriod').classList.toggle('bg-white', mode === 'period');
+            document.getElementById('modePeriod').classList.toggle('shadow-sm', mode === 'period');
+            document.getElementById('modePoint').classList.toggle('bg-white', mode === 'point');
+            document.getElementById('modePoint').classList.toggle('shadow-sm', mode === 'point');
+            
+            const endInput = document.getElementById('yearEnd');
+            if (mode === 'point') {
+                endInput.style.display = 'none';
+                document.getElementById('yearStart').placeholder = "السنة";
+            } else {
+                endInput.style.display = 'block';
+                document.getElementById('yearStart').placeholder = "سنة البداية";
+            }
+        }
+
+        function addEntry() {
+            const label = document.getElementById('eventLabel').value;
+            const start = parseInt(document.getElementById('yearStart').value);
+            const end = currentMode === 'period' ? parseInt(document.getElementById('yearEnd').value) : start;
+            const color = document.getElementById('eventColor').value;
+
+            if (!label || isNaN(start) || (currentMode === 'period' && isNaN(end))) {
+                alert("يرجى ملء كافة الحقول");
+                return;
+            }
+
+            entries.push({ id: Date.now(), label, start, end, color, mode: currentMode });
+            document.getElementById('eventLabel').value = '';
+            document.getElementById('yearStart').value = '';
+            document.getElementById('yearEnd').value = '';
+            updateList();
+        }
+
+        function updateList() {
+            const list = document.getElementById('entriesList');
+            list.innerHTML = entries.map(e => `
+                <div class="flex items-center justify-between p-2 bg-slate-50 rounded border">
+                    <span class="font-bold">${e.start} ${e.mode==='period'?'→ '+e.end:''}</span>
+                    <span class="truncate mx-2">${e.label}</span>
+                    <button onclick="removeEntry(${e.id})" class="text-red-500">✕</button>
+                </div>
+            `).join('');
+        }
+
+        function removeEntry(id) {
+            entries = entries.filter(e => e.id !== id);
+            updateList();
+        }
+
+        function clearEntries() {
+            entries = [];
+            updateList();
+        }
+
+        function drawTimeline() {
+            if (entries.length === 0) return;
+
+            document.getElementById('emptyState').classList.add('hidden');
+            document.getElementById('timelineBody').classList.remove('hidden');
+            
+            const axis = document.getElementById('axis');
+            axis.innerHTML = '';
+
+            const scale = parseInt(document.getElementById('scaleInput').value) || 10;
+            const title = document.getElementById('mainTitleInput').value || "سلم زمني تاريخي";
+            const calendar = document.getElementById('calendarType').value;
+
+            // Sort entries to find range
+            const allYears = entries.flatMap(e => [e.start, e.end]);
+            let minYear = Math.min(...allYears);
+            let maxYear = Math.max(...allYears);
+
+            // Create padding for the scale
+            let startAxis = Math.floor(minYear / scale) * scale - scale;
+            let endAxis = Math.ceil(maxYear / scale) * scale + scale;
+            let totalRange = endAxis - startAxis;
+
+            const widthPx = (totalRange / scale) * 37.8;
+            axis.style.width = widthPx + 'px';
+
+            // Draw Ticks (From Right [Oldest] to Left [Newest])
+            for (let y = startAxis; y <= endAxis; y += scale) {
+                // In RTL, oldest (min) is at 0% from right, newest (max) is at 100% from right
+                const pos = ((y - startAxis) / totalRange) * 100;
+                
+                const tick = document.createElement('div');
+                tick.className = 'tick';
+                tick.style.right = pos + '%';
+
+                const label = document.createElement('div');
+                label.className = 'tick-label';
+                label.innerText = (y < 0 ? Math.abs(y) + " ق.م" : y);
+                label.style.right = pos + '%';
+
+                axis.appendChild(tick);
+                axis.appendChild(label);
+            }
+
+            // Draw Data
+            entries.forEach(e => {
+                const startPos = ((e.start - startAxis) / totalRange) * 100;
+                const endPos = ((e.end - startAxis) / totalRange) * 100;
+
+                if (e.mode === 'period') {
+                    const block = document.createElement('div');
+                    block.className = 'period-block';
+                    // right is startYear, left is endYear
+                    block.style.right = startPos + '%';
+                    block.style.width = (endPos - startPos) + '%';
+                    block.style.backgroundColor = e.color;
+                    block.innerText = e.label;
+                    axis.appendChild(block);
+                } else {
+                    const line = document.createElement('div');
+                    line.className = 'point-event';
+                    line.style.right = startPos + '%';
+                    line.style.backgroundColor = e.color;
+
+                    const pLabel = document.createElement('div');
+                    pLabel.className = 'point-label';
+                    pLabel.style.right = startPos + '%';
+                    pLabel.style.borderColor = e.color;
+                    pLabel.innerText = e.label;
+
+                    axis.appendChild(line);
+                    axis.appendChild(pLabel);
+                }
+            });
+
+            document.getElementById('finalTitle').innerText = title;
+            document.getElementById('finalSub').innerText = `المقياس: 1 سم = ${scale} سنوات | نظام ${calendar}`;
+            
+            const now = new Date();
+            document.getElementById('timestamp').innerText = `حرر في: ${now.toLocaleDateString('ar-TN')} | ${now.toLocaleTimeString('ar-TN')}`;
+        }
+    </script>
+</body>
+</html>
